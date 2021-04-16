@@ -40,6 +40,16 @@ class Product(models.Model):
         return self.title
 
 
+class FilterProduct(Product):
+
+    manufacturer = models.CharField(max_length=255, verbose_name='Производитель')
+    application = models.CharField(max_length=255, verbose_name='Применение')
+    analog = models.CharField(max_length=255, verbose_name='Аналоги')
+
+    def __str__(self):
+        return "{} : {}".format(self.category.name, self.title)
+
+
 class CartProduct(models.Model):
 
     user = models.ForeignKey('Customer', verbose_name='Покупатель', on_delete=models.CASCADE)
