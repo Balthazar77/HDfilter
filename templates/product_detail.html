@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-
+{% load specifications %}
 {% block content %}
 
 
@@ -22,11 +22,8 @@
     </div>
     <p class="mt-4">Характеристики:</p>
 
-    {% if product.category.slug == 'filteroil' %}
-        {% include 'filter_oil_specification.html' %}
-    {% else %}
-        {% include 'filter_air_specification.html' %}
-    {% endif %}
+    {{ product|product_spec }}
+
 </div>
 
 {% endblock content %}

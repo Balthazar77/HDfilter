@@ -1,15 +1,23 @@
 from django.shortcuts import render
-from django.views.generic import DetailView
-from .models import Filter
+from django.views.generic import DetailView, ListView
+from .models import Filter, Category
 
-def test_view(request):
-    return render(request, 'base.html', {})
 
+class TestView(ListView):
+
+    template_name = 'base.html'
+    context_object_name =
+# def test_view(request):
+#     categories = Category.objects.get_categories_for_left_sidebar()
+#     return render(request, 'base.html', {'categories': categories})
+#
+# def get_queryset():
+#     return super().get_queryset()
 
 class ProductDetailView(DetailView):
 
     CT_MODEL_MODEL_CLASS = {
-        'filterair': Filter,
+        'filter': Filter,
 
     }
 

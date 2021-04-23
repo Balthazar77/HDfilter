@@ -8,12 +8,16 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 from django.urls import reverse
 from io import BytesIO
 from django.core.files.uploadedfile import InMemoryUploadedFile
+
 User = get_user_model()
+
+def get_models_for_count(*model_names):
+    return [models.Count(model_names) for model_name in model_names]
 
 
 def get_product_url(obj, viewname):
     ct_model = obj.__class__._meta.model_name
-    return  reverse(viewname, kwargs={'ct_model': ct_model, 'slug': obj.slug})
+    return reverse(viewname, kwargs={'ct_model': ct_model, 'slug': obj.slug})
     pass
 
 
@@ -46,26 +50,46 @@ class LatestProductsManager:
 
 
 class LatestProducts:
-
     objects = LatestProductsManager()
 
 
-class Category(models.Model):
+class CategoryManager(models.Manager):
 
+    CATEGORY_NAME_COUNT_NAME = {
+        'Фильтры воздушные': 'air__count',
+        'Фильтры гидравлические': 'gidr__count',
+        'Фильтры масляные': 'oil__count',
+        'Фильтры осушители воздуха': 'oair__count',
+        'Фильтры промышленные': 'fprom__count',
+        'Фильтры салона': 'fsalon__count',
+        'Фильтры топливные': 'fuel__count',
+        'Фильтры системы охлаждения': 'sys__count',
+        'ГСМ': 'gsm__count'
+    }
+
+    def get_queryset(self):
+        return super().get_queryset()
+
+    def get_categories_for_left_sidebar(self):
+        models = get_models_for_count('filter')
+        qs = list(self.get_queryset().annotate(*models).value())
+        return [dict(name=c['name'], slug=c['slug'], count=c[self.CATEGORY_NAME_COUNT_NAME[c['name']]]) for c in qs]
+
+
+class Category(models.Model):
     name = models.CharField(max_length=255, verbose_name='Имя категории')
     slug = models.SlugField(unique=True)
+
+
+    class Meta:
+        verbose_name = "Категория"
+        verbose_name_plural = "Категории"
 
     def __str__(self):
         return self.name
 
 
-    class Meta:
-
-        verbose_name = "Категория"
-        verbose_name_plural = "Категории"
-
 class Product(models.Model):
-
     MIN_RESOLUTION = (200, 200)
     MAX_RESOLUTION = (800, 800)
     MAX_IMAGE_SIZE = 3145728
@@ -81,7 +105,6 @@ class Product(models.Model):
         return self.title
 
     class Meta:
-
         verbose_name = "Продукт"
         verbose_name_plural = "Продукты"
 
@@ -109,16 +132,16 @@ class Product(models.Model):
 
 
 class Filter(Product):
-
     manufacturer = models.CharField(max_length=255, verbose_name='Производитель')
     application = models.CharField(max_length=255, verbose_name='Применение')
     analog = models.CharField(max_length=255, verbose_name='Аналоги')
+    weight = models.FloatField(default=0, verbose_name='Вес')
+    volume = models.FloatField(default=0, verbose_name='Объем')
 
     def __str__(self):
         return "{} : {}".format(self.category.name, self.title)
 
     class Meta:
-
         verbose_name = "Фильтр"
         verbose_name_plural = "Фильтры"
 
@@ -127,7 +150,6 @@ class Filter(Product):
 
 
 class CartProduct(models.Model):
-
     user = models.ForeignKey('Customer', verbose_name='Покупатель', on_delete=models.CASCADE)
     cart = models.ForeignKey('Cart', verbose_name='Корзина', on_delete=models.CASCADE, related_name='related_products')
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
@@ -137,27 +159,29 @@ class CartProduct(models.Model):
     final_price = models.DecimalField(max_digits=9, decimal_places=2, verbose_name='Общая цена')
 
     def __str__(self):
-        return "Продукт: {} (для корзины)".format(self.product.title)
-
+        return "Продукт: {} (для корзины)".format(self.content_object.title)
 
     class Meta:
-
         verbose_name = "Карта продукта"
         verbose_name_plural = "Карты продуктов"
 
 
 class Cart(models.Model):
-
     owner = models.ForeignKey('Customer', verbose_name='Владелец', on_delete=models.CASCADE)
     products = models.ManyToManyField(CartProduct, blank=True, related_name='related_cart')
     total_products = models.PositiveIntegerField(default=0)
     final_price = models.DecimalField(max_digits=9, decimal_places=2, verbose_name='Общая цена')
+    in_order = models.BooleanField(default=False)
+    for_anonymous_user = models.BooleanField(default=False)
 
     def __str__(self):
         return str(self.id)
 
+    class Meta:
+        verbose_name = "Корзина"
 
-class Customer (models.Model):
+
+class Customer(models.Model):
     user = models.ForeignKey(User, verbose_name='Пользователь', on_delete=models.CASCADE)
     phone = models.CharField(max_length=20, verbose_name='Номер телефона')
     address = models.CharField(max_length=255, verbose_name='Адрес')
@@ -165,8 +189,7 @@ class Customer (models.Model):
     def __str__(self):
         return "Покупатель {} {}".format(self.user.first_name, self.user.last_name)
 
-
-#class Specification(models.Model):
+# class Specification(models.Model):
 
 #    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
 #    object_id = models.PositiveIntegerField()
@@ -175,5 +198,5 @@ class Customer (models.Model):
 #    def __str__(self):
 #        return "Характеристики для товара: {}".format(self.name)
 
-#order
+# order
 # cart.related_products.all()
